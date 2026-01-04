@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Safety Monitor - WebRTC</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1a1a1a;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 { margin-bottom: 10px; color: #00d2ff; }
+        .video-wrapper {
+            position: relative;
+            width: 80%;
+            max-width: 1000px;
+            border: 3px solid #333;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            background: #000;
+        }
+        video {
+            width: 100%;
+            display: block;
+        }
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 15px;
+        }
+        button {
+            padding: 12px 25px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .btn-start { background-color: #28a745; color: white; }
+        .btn-start:hover { background-color: #218838; }
+        .btn-stop { background-color: #dc3545; color: white; }
+        .btn-stop:hover { background-color: #c82333; }
+        
+        #status {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #aaa;
+        }
+        .live-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: red;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-weight: bold;
+            font-size: 12px;
+            animation: blink 1s infinite;
+            display: none;
+        }
+        @keyframes blink { 50% { opacity: 0.5; } }
+    </style>
+</head>
+<body>
+
+    <h1>🛡️ AI Safety Monitor System</h1>
+    <p>Phát hiện vi phạm mũ bảo hộ thời gian thực từ YouTube</p>
+
+    <div class="video-wrapper">
+        <div id="liveBadge" class="live-badge">● LIVE AI</div>
+        <!-- autoplay playsinline muted để đảm bảo tự chạy được -->
+        <video id="video" autoplay playsinline controls></video>
+    </div>
+
+    <div class="controls">
+        <button class="btn-start" onclick="start()">▶️ KẾT NỐI AI MONITOR</button>
+        <button class="btn-stop" onclick="stop()">⏹️ NGẮT KẾT NỐI</button>
+    </div>
+    <div id="status">Trạng thái: Sẵn sàng</div>
+
+    <script>
+        let pc = null;
+
+        async function start() {
+            const statusDiv = document.getElementById('status');
+            const video = document.getElementById('video');
+            const badge = document.getElementById('liveBadge');
+            
+            statusDiv.innerText = "Trạng thái: Đang lấy link YouTube & Khởi động AI...";
+            
+            const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+            pc = new RTCPeerConnection(config);
+
+            // Xử lý khi nhận được track video
+            pc.ontrack = function(evt) {
+                if (evt.track.kind === 'video') {
+                    console.log("Đã nhận stream video");
+                    video.srcObject = evt.streams[0];
+                    statusDiv.innerText = "Trạng thái: Đang giám sát (Connected)";
+                    statusDiv.style.color = "#00ff00";
+                    badge.style.display = "block";
+                }
+            };
+
+            // Yêu cầu nhận video
+            pc.addTransceiver('video', { direction: 'recvonly' });
+
+            // Tạo Offer
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+
+            // Chờ ICE candidates
+            await new Promise((resolve) => {
+                if (pc.iceGatheringState === 'complete') resolve();
+                else {
+                    const checkState = () => {
+                        if (pc.iceGatheringState === 'complete') {
+                            pc.removeEventListener('icegatheringstatechange', checkState);
+                            resolve();
+                        }
+                    };
+                    pc.addEventListener('icegatheringstatechange', checkState);
+                }
+            });
+
+            // Gửi Offer lên server
+            try {
+                const response = await fetch('/offer', {
+                    body: JSON.stringify({
+                        sdp: pc.localDescription.sdp,
+                        type: pc.localDescription.type
+                    }),
+                    headers: { 'Content-Type': 'application/json' },
+                    method: 'POST'
+                });
+
+                if (!response.ok) throw new Error("Server error");
+
+                const answer = await response.json();
+                await pc.setRemoteDescription(answer);
+            } catch (e) {
+                statusDiv.innerText = "Lỗi kết nối: " + e.message;
+                statusDiv.style.color = "red";
+            }
+        }
+
+        function stop() {
+            if (pc) {
+                pc.close();
+                pc = null;
+            }
+            document.getElementById('video').srcObject = null;
+            document.getElementById('liveBadge').style.display = "none";
+            document.getElementById('status').innerText = "Trạng thái: Đã ngắt kết nối";
+            document.getElementById('status').style.color = "#aaa";
+        }
+    </script>
+</body>
+</html>
