@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Webcam Monitor</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        .video-box {
+            border: 4px solid #e74c3c;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            background: #000;
+            width: 640px;
+            height: 480px;
+        }
+        video { width: 100%; height: 100%; object-fit: cover; }
+        button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 18px;
+            background: #e67e22;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        button:hover { background: #d35400; }
+        #status { margin-top: 10px; color: #bdc3c7; }
+    </style>
+</head>
+<body>
+    <h1>🎥 AI Webcam Monitor</h1>
+    <div class="video-box">
+        <video id="video" autoplay playsinline></video>
+    </div>
+    <button onclick="start()">Bật Camera & AI</button>
+    <div id="status">Sẵn sàng...</div>
+
+    <script>
+        async function start() {
+            const status = document.getElementById('status');
+            status.innerText = "Đang kết nối...";
+            
+            const pc = new RTCPeerConnection();
+
+            pc.ontrack = (evt) => {
+                document.getElementById('video').srcObject = evt.streams[0];
+                status.innerText = "Đang chạy AI...";
+            };
+
+            pc.addTransceiver('video', { direction: 'recvonly' });
+
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+
+            // Chờ ICE candidate
+            await new Promise(r => {
+                if (pc.iceGatheringState === 'complete') r();
+                else pc.onicegatheringstatechange = () => {
+                    if (pc.iceGatheringState === 'complete') r();
+                };
+            });
+
+            const res = await fetch('/offer', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    sdp: pc.localDescription.sdp,
+                    type: pc.localDescription.type
+                })
+            });
+
+            const answer = await res.json();
+            await pc.setRemoteDescription(answer);
+        }
+    </script>
+</body>
+</html>
