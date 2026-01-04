@@ -4,6 +4,8 @@ import MainLayout from "./layouts/MainLayout";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
+import CameraDetect from "./pages/CameraDetect";     // ← Add this
+import VideoDetect from "./pages/VideoDetect";       // ← Add this
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import "./App.css";
 
@@ -25,6 +27,22 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/camera-detect"
+              element={
+                <ProtectedRoute>
+                  <CameraDetect />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/video-detect"
+              element={
+                <ProtectedRoute>
+                  <VideoDetect />
                 </ProtectedRoute>
               }
             />

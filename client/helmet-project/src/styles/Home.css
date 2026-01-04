@@ -1,0 +1,244 @@
+
+.home-hero-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 90vh;
+  padding: 0 3rem;
+  background: linear-gradient(135deg, #fff8f5 0%, #ffffff 100%);
+  gap: 4rem;
+}
+
+.home-hero-content {
+  flex: 1;
+  max-width: 600px;
+}
+
+.home-hero-title {
+  font-size: 3.5rem;
+  font-weight: 800;
+  line-height: 1.2;
+  margin-bottom: 1.5rem;
+  color: #222;
+}
+
+.home-highlight {
+  color: #ff6b35; /* Main orange */
+}
+
+.home-hero-subtitle {
+  font-size: 1.3rem;
+  color: #555;
+  line-height: 1.7;
+  margin-bottom: 2.5rem;
+}
+
+.home-hero-actions {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 3rem;
+}
+
+.home-trust-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  font-size: 0.95rem;
+  color: #ff6b35;
+  font-weight: 600;
+}
+
+.home-trust-badges span::before {
+  content: "✓ ";
+  margin-right: 0.5rem;
+}
+
+/* Buttons */
+.home-btn {
+  padding: 0.9rem 1.8rem;
+  border-radius: 50px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  display: inline-block;
+  text-align: center;
+  cursor: pointer;
+}
+
+.home-btn-primary {
+  background: #ff6b35;
+  color: white;
+  border: 2px solid #ff6b35;
+}
+
+.home-btn-primary:hover {
+  background: #e55a2b;
+  transform: translateY(-3px);
+  box-shadow: 0 10px 20px rgba(255, 107, 53, 0.2);
+}
+
+.home-btn-outline {
+  background: transparent;
+  color: #ff6b35;
+  border: 2px solid #ff6b35;
+}
+
+.home-btn-outline:hover {
+  background: #ff6b35;
+  color: white;
+}
+
+.home-btn-large {
+  padding: 1.2rem 2.5rem;
+  font-size: 1.1rem;
+}
+
+/* Mock Dashboard Illustration */
+.home-hero-image {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.home-mock-dashboard {
+  width: 420px;
+  height: 300px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.home-mock-screen {
+  padding: 1.5rem;
+}
+
+.home-orange-bar {
+  height: 16px;
+  background: #ff6b35;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.home-orange-bar-light {
+  background: #ff9f7a;
+  opacity: 0.6;
+}
+
+.home-mock-content {
+  margin-top: 2rem;
+}
+
+.home-mock-circle {
+  width: 60px;
+  height: 60px;
+  background: #ff6b35;
+  border-radius: 50%;
+  margin-bottom: 1rem;
+}
+
+.home-mock-line {
+  height: 12px;
+  background: #eee;
+  border-radius: 6px;
+  margin-bottom: 0.8rem;
+}
+
+.home-mock-line-short {
+  width: 60%;
+}
+
+/* Features Section */
+.home-features-section {
+  padding: 6rem 0;
+  background: white;
+}
+
+.home-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+.home-section-title {
+  text-align: center;
+  font-size: 2.5rem;
+  margin-bottom: 4rem;
+  color: #222;
+}
+
+.home-features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 2rem;
+}
+
+.home-feature-card {
+  text-align: center;
+  padding: 2rem;
+  border-radius: 16px;
+  background: #fff8f5;
+  transition: transform 0.3s ease;
+}
+
+.home-feature-card:hover {
+  transform: translateY(-10px);
+}
+
+.home-feature-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.home-feature-card h3 {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  color: #222;
+}
+
+/* CTA Section */
+.home-cta-section {
+  padding: 6rem 0;
+  text-align: center;
+  background: linear-gradient(135deg, #ff6b35, #ff8a5b);
+  color: white;
+}
+
+.home-cta-section h2 {
+  font-size: 2.8rem;
+  margin-bottom: 1rem;
+}
+
+.home-cta-section p {
+  font-size: 1.2rem;
+  margin-bottom: 2.5rem;
+  opacity: 0.95;
+}
+
+/* Responsive Design */
+@media (max-width: 968px) {
+  .home-hero-section {
+    flex-direction: column;
+    text-align: center;
+    padding: 4rem 2rem;
+  }
+
+  .home-hero-title {
+    font-size: 2.8rem;
+  }
+
+  .home-hero-actions {
+    justify-content: center;
+  }
+
+  .home-mock-dashboard {
+    width: 340px;
+    height: 240px;
+    margin-top: 3rem;
+  }
+
+  .home-hero-image {
+    order: -1; /* Image appears above text on mobile */
+  }
+}

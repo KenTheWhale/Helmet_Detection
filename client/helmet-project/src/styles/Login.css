@@ -1,0 +1,133 @@
+
+.login-wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #fff8f5 0%, #ffffff 100%);
+  padding: 2rem;
+}
+
+.login-card {
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+  padding: 3rem;
+  width: 100%;
+  max-width: 420px;
+  text-align: center;
+}
+
+.login-header {
+  margin-bottom: 2.5rem;
+}
+
+.login-title {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #222;
+  margin-bottom: 0.5rem;
+}
+
+.login-highlight {
+  color: #ff6b35; /* Same orange */
+}
+
+.login-subtitle {
+  font-size: 1.6rem;
+  color: #333;
+  margin-bottom: 0.8rem;
+}
+
+.login-description {
+  color: #666;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+/* Form Styles */
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  margin-bottom: 2rem;
+}
+
+.login-input-group {
+  text-align: left;
+}
+
+.login-input {
+  width: 100%;
+  padding: 1rem 1.2rem;
+  border: 2px solid #eee;
+  border-radius: 12px;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  background: #f9f9f9;
+}
+
+.login-input:focus {
+  outline: none;
+  border-color: #ff6b35;
+  background: white;
+  box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.1);
+}
+
+.login-input::placeholder {
+  color: #aaa;
+}
+
+/* Button */
+.login-btn {
+  padding: 1rem;
+  border-radius: 12px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: none;
+}
+
+.login-btn-primary {
+  background: #ff6b35;
+  color: white;
+}
+
+.login-btn-primary:hover {
+  background: #e55a2b;
+  transform: translateY(-3px);
+  box-shadow: 0 10px 20px rgba(255, 107, 53, 0.25);
+}
+
+/* Footer */
+.login-footer {
+  font-size: 0.95rem;
+  color: #777;
+}
+
+.login-link {
+  color: #ff6b35;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.login-link:hover {
+  text-decoration: underline;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .login-card {
+    padding: 2rem;
+    border-radius: 16px;
+  }
+
+  .login-title {
+    font-size: 1.9rem;
+  }
+
+  .login-subtitle {
+    font-size: 1.4rem;
+  }
+}
