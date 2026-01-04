@@ -1,14 +1,10 @@
-import argparse
 import asyncio
-import json
-import logging
 import os
+from datetime import datetime
+from pathlib import Path
+
 import cv2
 import yt_dlp
-import numpy as np
-from pathlib import Path
-from datetime import datetime
-
 from aiohttp import web
 from aiortc import RTCPeerConnection, RTCSessionDescription, VideoStreamTrack
 from aiortc.contrib.media import MediaPlayer
