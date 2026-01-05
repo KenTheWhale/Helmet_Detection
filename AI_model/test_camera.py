@@ -1,18 +1,15 @@
-import argparse
 import asyncio
-import json
-import logging
 import os
+
 import cv2
 import numpy as np
+import threading
+import time
 from pathlib import Path
 from datetime import datetime
-from fractions import Fraction
-import time
-
-from aiohttp import web
 from aiortc import RTCPeerConnection, RTCSessionDescription, VideoStreamTrack
 from av import VideoFrame
+from aiohttp import web
 from ultralytics import YOLO
 
 # ==============================================================================
@@ -24,7 +21,7 @@ CAMERA_ID = 0
 MODEL_PATH = Path(r"./best.pt")
 PATH_HELMET    = Path(r"./2_Detect_Helmet")
 PATH_NO_HELMET = Path(r"./3_Detect_No_Helmet")
-
+SAVE_INTERVAL = 60
 SAVE_FRAME_INTERVAL = 30
 CONF_VIOLATION      = 0.4 # Tăng lên xíu để đỡ báo ảo
 CONF_SAFE           = 0.5
@@ -54,84 +51,80 @@ except Exception as e:
 # 2. CLASS CAMERA TRACK (MỚI)
 # ==============================================================================
 class CameraAITrack(VideoStreamTrack):
-    """
-    Track này tự mở Camera, đọc frame, chạy YOLO và gửi sang WebRTC
-    """
     def __init__(self):
         super().__init__()
         self.cap = cv2.VideoCapture(CAMERA_ID)
-        self.frame_cnt = 0
-        self.start_time = time.time()
-        
-        # Cấu hình độ phân giải Camera (nếu cần nhẹ thì giảm xuống)
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+        # Thiết lập độ phân giải HD để video rõ nét
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+
+        self.latest_frame = None
+        self.processed_frame = None
+        self.last_save_time = time.time()
+        self.running = True
+
+        # Luồng 1: Đọc camera liên tục (Đảm bảo mượt)
+        self.read_thread = threading.Thread(target=self._update_camera, daemon=True)
+        # Luồng 2: Chạy AI (Đảm bảo không lag luồng chính)
+        self.ai_thread = threading.Thread(target=self._run_ai, daemon=True)
+
+        self.read_thread.start()
+        self.ai_thread.start()
+
+    def _update_camera(self):
+        while self.running:
+            ret, frame = self.cap.read()
+            if ret:
+                self.latest_frame = frame
+            time.sleep(0.01)
+
+    def _run_ai(self):
+        while self.running:
+            if self.latest_frame is not None:
+                frame = self.latest_frame.copy()
+
+                # Chạy AI với kích thước ảnh nhỏ hơn (imgsz=320) để tăng tốc
+                results = model.predict(frame, conf=0.4, imgsz=416, verbose=False)
+
+                has_no_helmet = False
+                # Vẽ khung ngay trên luồng AI
+                for r in results:
+                    annotated_frame = r.plot() # Hàm vẽ sẵn của YOLO, rất nhanh và đẹp
+                    for box in r.boxes:
+                        label = model.names[int(box.cls[0])].lower()
+                        if label in ['head', 'no-helmet']:
+                            has_no_helmet = True
+
+                self.processed_frame = annotated_frame
+
+                # Logic chụp ảnh mỗi 1 phút
+                current_time = time.time()
+                if current_time - self.last_save_time >= SAVE_INTERVAL:
+                    if has_no_helmet:
+                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                        cv2.imwrite(str(PATH_NO_HELMET / f"violation_{timestamp}.jpg"), annotated_frame)
+                        print(f"📸 Đã lưu ảnh vi phạm lúc {timestamp}")
+                    self.last_save_time = current_time
+
+            time.sleep(0.03) # Giới hạn AI chạy khoảng 30 FPS để tiết kiệm CPU
 
     async def recv(self):
-        # Tính toán timestamp cho frame (WebRTC cần cái này để video trôi chảy)
         pts, time_base = await self.next_timestamp()
-        
-        # Đọc frame từ Camera
-        ret, frame = self.cap.read()
-        if not ret:
-            # Nếu không đọc được (camera bị rút, lỗi), tạo màn hình đen
-            frame = np.zeros((480, 640, 3), dtype=np.uint8)
-        
-        self.frame_cnt += 1
-        
-        # --- LOGIC AI YOLO ---
-        # Chạy predict
-        results = model.predict(frame, conf=CONF_VIOLATION, iou=IOU_THRESHOLD, verbose=False)
-        
-        has_violation = False
-        has_safe = False
 
-        for result in results:
-            boxes = result.boxes
-            for box in boxes:
-                cls_id = int(box.cls[0])
-                if model.names:
-                    cls_name = model.names[cls_id].lower().replace("_", "-")
-                else:
-                    cls_name = "unknown"
-                
-                conf = float(box.conf[0])
-                x1, y1, x2, y2 = map(int, box.xyxy[0])
+        # Nếu đã có frame xử lý bởi AI thì gửi đi, nếu chưa thì gửi frame thô
+        frame = self.processed_frame if self.processed_frame is not None else self.latest_frame
 
-                # Vẽ VI PHẠM
-                if any(k in cls_name for k in KW_UNSAFE) and conf >= CONF_VIOLATION:
-                    has_violation = True
-                    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
-                    cv2.putText(frame, f"VIOLATION {conf:.2f}", (x1, y1 - 10), 
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
-                
-                # Vẽ AN TOÀN
-                elif any(k in cls_name for k in KW_SAFE) and conf >= CONF_SAFE:
-                    if not has_violation: has_safe = True 
-                    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                    cv2.putText(frame, f"SAFE {conf:.2f}", (x1, y1 - 10), 
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+        if frame is None:
+            frame = np.zeros((720, 1280, 3), dtype=np.uint8)
 
-        # Lưu ảnh (Audit)
-        if self.frame_cnt % SAVE_FRAME_INTERVAL == 0:
-            time_str = datetime.now().strftime("%Y%m%d_%H%M%S")
-            img_name = f"Cam_{time_str}_{self.frame_cnt}.jpg"
-            if has_violation:
-                cv2.imwrite(str(PATH_NO_HELMET / img_name), frame)
-                print(f"❌ [CAM] Lưu ảnh vi phạm: {img_name}")
-            elif has_safe:
-                cv2.imwrite(str(PATH_HELMET / img_name), frame)
-
-        # --- ĐÓNG GÓI TRẢ VỀ WEBRTC ---
-        # Chuyển OpenCV (BGR) -> VideoFrame
         new_frame = VideoFrame.from_ndarray(frame, format="bgr24")
         new_frame.pts = pts
         new_frame.time_base = time_base
         return new_frame
 
     def stop(self):
-        if self.cap.isOpened():
-            self.cap.release()
+        self.running = False
+        self.cap.release()
         super().stop()
 
 # ==============================================================================
