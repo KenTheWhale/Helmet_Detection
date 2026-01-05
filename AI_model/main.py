@@ -170,8 +170,6 @@ async def stream_youtube(link: str):
         return {"error": str(e)}
 
 if __name__ == "__main__":
-    # Lấy port từ biến môi trường của Render, nếu không có thì mặc định là 8000
-    port = int(os.environ.get("PORT", 8000))
-
-    # Quan trọng: Host phải là 0.0.0.0 khi chạy trên Cloud
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    # Chạy cố định ở 127.0.0.1 port 8000
+    print("--- SERVER ĐANG CHẠY TẠI http://127.0.0.1:8000 ---")
+    uvicorn.run(app, host="127.0.0.1", port=8000)

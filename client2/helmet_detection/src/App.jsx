@@ -3,67 +3,98 @@ import {useEffect, useState} from "react";
 import axios from "axios";
 
 function App() {
-    // Cấu hình URL Backend
-    // const BASE_URL = "http://127.0.0.2:8000";
-    const BASE_URL = "https://helmet-detection-9udq.onrender.com";
+    // 1. Quản lý cấu hình URL Backend
+    const [baseUrl, setBaseUrl] = useState("");
+    const [tempUrl, setTempUrl] = useState("");
+    const [isConfigured, setIsConfigured] = useState(false);
 
-    // Các State quản lý luồng dữ liệu
+    // 2. Các State quản lý luồng dữ liệu
     const [source, setSource] = useState(null);
     const [ytLink, setYtLink] = useState("");
     const [isStreaming, setIsStreaming] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [latency, setLatency] = useState(14);
-
-    // State quản lý Log vi phạm
     const [logs, setLogs] = useState([]);
+    const [isServerOnline, setIsServerOnline] = useState(false);
 
-    // 1. Hàm lấy danh sách Log từ Backend mỗi 5 giây
+    // Hàm xác nhận URL từ Popup
+    const handleConnect = () => {
+        if (!tempUrl) return alert("Vui lòng nhập URL Backend");
+        setBaseUrl(tempUrl);
+        setIsConfigured(true);
+    };
+
+    // 3. Effect lấy logs (Chỉ chạy khi đã có baseUrl)
     useEffect(() => {
+        if (!isConfigured) return;
+
         const fetchLogs = async () => {
             try {
-                const response = await axios.get(`${BASE_URL}/logs`);
-                setLogs(response.data);
+                const response = await axios.get(`${baseUrl}/logs`);
+                // KIỂM TRA DỮ LIỆU TRƯỚC KHI SET STATE
+                if (Array.isArray(response.data)) {
+                    setLogs(response.data);
+                } else if (response.data && Array.isArray(response.data.logs)) {
+                    setLogs(response.data.logs); // Trường hợp backend trả về { logs: [...] }
+                }
             } catch (error) {
                 console.error("Không thể lấy dữ liệu log:", error);
             }
         };
+        fetchLogs();
+        const interval = setInterval(fetchLogs, 5000);
+        return () => clearInterval(interval);
+    }, [isConfigured, baseUrl]);
 
-        fetchLogs(); // Lấy ngay khi load trang
-        const interval = setInterval(fetchLogs, 5000); // Cập nhật sau mỗi 5s
+    // Effect giả lập latency
+    useEffect(() => {
+        const interval = setInterval(() => {
+            const randomLatency = Math.floor(Math.random() * 20) + 1;
+            setLatency(randomLatency);
+        }, 1500);
         return () => clearInterval(interval);
     }, []);
 
     useEffect(() => {
-        const interval = setInterval(() => {
-            // Tạo số ngẫu nhiên từ 1 đến 20
-            const randomLatency = Math.floor(Math.random() * 20) + 1;
-            setLatency(randomLatency);
-        }, 1500); // Cập nhật sau mỗi 1500ms
+        if (!isConfigured) return;
 
+        const checkStatus = async () => {
+            try {
+                // Thử gọi đến endpoint logs hoặc tạo 1 endpoint /health bên backend
+                const response = await axios.get(`${baseUrl}/logs`);
+                if (response.status === 200) {
+                    setIsServerOnline(true);
+                }
+            } catch (error) {
+                setIsServerOnline(false);
+                console.error("Server mất kết nối.");
+            }
+        };
+
+        checkStatus(); // Chạy ngay lập tức
+        const interval = setInterval(checkStatus, 5000); // Kiểm tra lại mỗi 5 giây
         return () => clearInterval(interval);
-    }, []);
+    }, [isConfigured, baseUrl]);
 
-    // 2. Hàm xử lý Mở Webcam
+    // 4. Các hàm xử lý sự kiện
     const handleWebcam = () => {
         setIsLoading(true);
-        setSource(`${BASE_URL}/video_feed?t=${Date.now()}`);
+        setSource(`${baseUrl}/video_feed?t=${Date.now()}`);
         setIsStreaming(true);
         setTimeout(() => setIsLoading(false), 1000);
     };
 
-    // 3. Hàm xử lý Chạy YouTube
     const handleYoutube = () => {
         if (!ytLink) return alert("Vui lòng nhập link YouTube");
         setIsLoading(true);
-        setSource(`${BASE_URL}/stream_youtube?link=${encodeURIComponent(ytLink)}&t=${Date.now()}`);
+        setSource(`${baseUrl}/stream_youtube?link=${encodeURIComponent(ytLink)}&t=${Date.now()}`);
         setIsStreaming(true);
         setTimeout(() => setIsLoading(false), 2000);
     };
 
-    // 4. Hàm Dừng hệ thống
     const stopStream = async () => {
         try {
-            await axios.post(`${BASE_URL}/stop_camera`);
+            await axios.post(`${baseUrl}/stop_camera`);
             setSource(null);
             setIsStreaming(false);
             setIsLoading(false);
@@ -74,8 +105,7 @@ function App() {
 
     const deleteLog = async (id) => {
         try {
-            await axios.delete(`${BASE_URL}/logs/${id}`);
-            // Cập nhật lại state logs ngay lập tức để UI biến mất dòng đó
+            await axios.delete(`${baseUrl}/logs/${id}`);
             setLogs(logs.filter(log => log.id !== id));
         } catch (error) {
             console.error("Không thể xóa log:", error);
@@ -84,6 +114,37 @@ function App() {
     };
 
     return (<div className="min-h-screen bg-[#0f172a] text-slate-100 font-sans p-4 md:p-8 antialiased">
+        {/* --- POPUP CẤU HÌNH BAN ĐẦU --- */}
+        {!isConfigured && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/90 backdrop-blur-xl">
+                <div className="bg-slate-900 border border-slate-700 p-8 rounded-[2.5rem] shadow-2xl max-w-md w-full mx-4 text-center">
+                    <div className="w-20 h-20 bg-blue-600/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                    </div>
+                    <h2 className="text-2xl font-black mb-2 uppercase tracking-tighter">Cấu hình Server</h2>
+                    <p className="text-slate-400 text-sm mb-6">Vui lòng nhập địa chỉ URL của Backend AI để bắt đầu giám sát.</p>
+
+                    <div className="space-y-4">
+                        <input
+                            type="text"
+                            className="w-full bg-slate-800 border border-slate-600 p-4 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-blue-500 transition-all text-blue-400 font-mono"
+                            placeholder="https://your-api-url.com"
+                            value={tempUrl}
+                            onChange={(e) => setTempUrl(e.target.value)}
+                        />
+                        <button
+                            onClick={handleConnect}
+                            className="w-full bg-blue-600 hover:bg-blue-500 py-4 rounded-2xl font-black text-sm transition-all shadow-lg shadow-blue-900/40 active:scale-95"
+                        >
+                            KẾT NỐI HỆ THỐNG
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+
         {/* Header Section */}
         <div className="max-w-7xl mx-auto mb-10 flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="text-center md:text-left">
@@ -94,13 +155,18 @@ function App() {
             </div>
             <div className="flex gap-6 bg-slate-800/40 px-6 py-3 rounded-2xl border border-slate-700/50">
                 <div className="text-center">
-                    <p className="text-[10px] text-slate-500 uppercase font-bold">Server</p>
-                    <p className="text-emerald-400 font-mono text-sm uppercase">Online</p>
+                    <p className="text-[10px] text-slate-500 uppercase font-bold">Server Status</p>
+                    <div className="flex items-center gap-2 justify-center">
+                        <div className={`w-2 h-2 rounded-full ${isServerOnline ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
+                        <p className={`font-mono text-sm uppercase font-bold ${isServerOnline ? 'text-emerald-400' : 'text-red-500'}`}>
+                            {isServerOnline ? 'Online' : 'Offline'}
+                        </p>
+                    </div>
                 </div>
                 <div className="w-px bg-slate-700"></div>
-                <div className="text-center">
-                    <p className="text-[10px] text-slate-500 uppercase font-bold">IP Node</p>
-                    <p className="text-blue-400 font-mono text-sm">127.0.0.2</p>
+                <div className="text-center overflow-hidden max-w-[150px]">
+                    <p className="text-[10px] text-slate-500 uppercase font-bold">API Endpoint</p>
+                    <p className="text-blue-400 font-mono text-[10px] truncate">{baseUrl}</p>
                 </div>
             </div>
         </div>
@@ -110,36 +176,28 @@ function App() {
 
             {/* --- CỘT TRÁI: MÀN HÌNH GIÁM SÁT (8/12) --- */}
             <div className="lg:col-span-8 space-y-6">
-                <div
-                    className="relative w-full h-[500px] lg:h-[680px] bg-black rounded-[2.5rem] border-4 border-slate-800 shadow-2xl overflow-hidden flex items-center justify-center group">
-                    {isStreaming && source ? (<>
-                        <img
-                            src={source}
-                            alt="AI Stream"
-                            className="w-full h-full object-cover bg-slate-900"
-                        />
-                        {/* Badge Live */}
-                        <div
-                            className="absolute top-8 left-8 flex items-center gap-2 bg-red-600/90 backdrop-blur-md px-4 py-1.5 rounded-full text-[11px] font-black animate-pulse">
-                            <div className="w-2 h-2 bg-white rounded-full"></div>
-                            LIVE
+                <div className="relative w-full h-[500px] lg:h-[680px] bg-black rounded-[2.5rem] border-4 border-slate-800 shadow-2xl overflow-hidden flex items-center justify-center group">
+                    {isStreaming && source ? (
+                        <>
+                            <img src={source} alt="AI Stream" className="w-full h-full object-cover bg-slate-900" />
+                            <div className="absolute top-8 left-8 flex items-center gap-2 bg-red-600/90 backdrop-blur-md px-4 py-1.5 rounded-full text-[11px] font-black animate-pulse">
+                                <div className="w-2 h-2 bg-white rounded-full"></div>LIVE
+                            </div>
+                        </>
+                    ) : (
+                        <div className="flex flex-col items-center opacity-30 text-slate-500">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-24 w-24 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
+                            <p className="text-lg font-bold tracking-[0.3em] uppercase">System Standby</p>
                         </div>
-                    </>) : (<div className="flex flex-col items-center opacity-30 text-slate-500">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-24 w-24 mb-4" fill="none"
-                             viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1}
-                                  d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-                        </svg>
-                        <p className="text-lg font-bold tracking-[0.3em] uppercase">System Standby</p>
-                    </div>)}
-
-                    {/* Loading Overlay */}
-                    {isLoading && (<div
-                        className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center z-20">
-                        <div
-                            className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-                        <p className="text-blue-400 font-bold tracking-tighter">ĐANG KHỞI TẠO AI...</p>
-                    </div>)}
+                    )}
+                    {isLoading && (
+                        <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center z-20">
+                            <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                            <p className="text-blue-400 font-bold tracking-tighter">ĐANG KHỞI TẠO AI...</p>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -147,43 +205,29 @@ function App() {
             <div className="lg:col-span-4 flex flex-col gap-6">
 
                 {/* 1. Bảng điều khiển */}
-                <div
-                    className="bg-slate-800/50 p-6 rounded-[2rem] border border-slate-700 shadow-xl backdrop-blur-md">
-                    <h2 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] mb-6">Bảng điều
-                        khiển</h2>
+                <div className="bg-slate-800/50 p-6 rounded-[2rem] border border-slate-700 shadow-xl backdrop-blur-md">
+                    <h2 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] mb-6">Bảng điều khiển</h2>
                     <div className="space-y-4">
                         <div>
-                            <label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block ml-1">Link
-                                Video YouTube</label>
+                            <label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block ml-1">Link YouTube</label>
                             <div className="flex gap-2">
                                 <input
-                                    className="flex-1 bg-slate-900 border border-slate-700 p-3.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 transition-all placeholder:text-slate-600"
+                                    className="flex-1 bg-slate-900 border border-slate-700 p-3.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                                     placeholder="Dán link tại đây..."
                                     value={ytLink}
                                     onChange={(e) => setYtLink(e.target.value)}
                                     disabled={isStreaming}
                                 />
-                                <button
-                                    onClick={handleYoutube}
-                                    disabled={isStreaming}
-                                    className="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 text-white px-5 rounded-xl font-bold text-xs transition-all active:scale-95 shadow-lg shadow-blue-900/20"
-                                >
-                                    CHẠY
-                                </button>
+                                <button onClick={handleYoutube} disabled={isStreaming} className="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 text-white px-5 rounded-xl font-bold text-xs transition-all active:scale-95">CHẠY</button>
                             </div>
                         </div>
-
-                        {!isStreaming ? (<button
-                            onClick={handleWebcam}
-                            className="w-full bg-emerald-600 hover:bg-emerald-500 py-4 rounded-xl font-black text-sm transition-all shadow-lg shadow-emerald-900/20 active:scale-95 flex items-center justify-center gap-3"
-                        >
-                            <span className="text-xl">●</span> MỞ CAMERA GIÁM SÁT
-                        </button>) : (<button
-                            onClick={stopStream}
-                            className="w-full bg-rose-600 hover:bg-rose-500 py-4 rounded-xl font-black text-sm transition-all shadow-lg shadow-rose-900/40 active:scale-95"
-                        >
-                            DỪNG HỆ THỐNG
-                        </button>)}
+                        {!isStreaming ? (
+                            <button onClick={handleWebcam} className="w-full bg-emerald-600 hover:bg-emerald-500 py-4 rounded-xl font-black text-sm transition-all flex items-center justify-center gap-3">
+                                <span className="text-xl">●</span> MỞ CAMERA GIÁM SÁT
+                            </button>
+                        ) : (
+                            <button onClick={stopStream} className="w-full bg-rose-600 hover:bg-rose-500 py-4 rounded-xl font-black text-sm transition-all">DỪNG HỆ THỐNG</button>
+                        )}
                     </div>
                 </div>
 
