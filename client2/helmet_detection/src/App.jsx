@@ -4,7 +4,8 @@ import axios from "axios";
 
 function App() {
     // Cấu hình URL Backend
-    const BASE_URL = "http://127.0.0.2:8000";
+    // const BASE_URL = "http://127.0.0.2:8000";
+    const BASE_URL = "https://helmet-detection-9udq.onrender.com";
 
     // Các State quản lý luồng dữ liệu
     const [source, setSource] = useState(null);
